@@ -18,16 +18,16 @@ server = Server("illustrator")
 async def handle_list_tools() -> list[types.Tool]:
     return [
         types.Tool(
-            name="capture-illustrator",
-            description="Capture the adobe illustrator window",
+            name="view",
+            description="View a screenshot of the Adobe Ullustrator window",
             inputSchema={
                 "type": "object",
                 "properties": {},
             },
         ),
         types.Tool(
-            name="run-illustrator-script",
-            description="Run ExtendScript code in Illustrator. Use 'app' to access the Illustrator application object.",
+            name="run",
+            description="Run ExtendScript code in Illustrator",
             inputSchema={
                 "type": "object",
                 "properties": {
