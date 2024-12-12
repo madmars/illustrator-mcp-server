@@ -122,9 +122,9 @@ def runIllustratorScript(code: str) -> list[types.TextContent]:
 async def handleCallTool(
     name: str, arguments: dict | None
 ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-    if name == "capture-illustrator":
+    if name == "view":
         return captureIllustrator()
-    elif name == "run-illustrator-script":
+    elif name == "run":
         if not arguments or "code" not in arguments:
             return [types.TextContent(type="text", text="No code provided")]
         return runIllustratorScript(arguments["code"])
@@ -138,7 +138,7 @@ async def main():
             read_stream,
             write_stream,
             InitializationOptions(
-                server_name="weather",
+                server_name="illustrator",
                 server_version="0.1.0",
                 capabilities=server.get_capabilities(
                     notification_options=NotificationOptions(),
