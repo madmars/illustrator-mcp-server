@@ -51,7 +51,6 @@ async def handle_call_tool(
             screenshot_path = f.name
 
         try:
-            # Activate Illustrator for update
             activate_script = """
                 tell application "Adobe Illustrator" to activate
                 delay 1
@@ -77,26 +76,18 @@ async def handle_call_tool(
                     types.TextContent(type="text", text="Failed to capture screenshot")
                 ]
 
-            # Compress with PIL
             with Image.open(screenshot_path) as img:
-                # Convert to RGB if needed
                 if img.mode in ("RGBA", "LA"):
                     img = img.convert("RGB")
-
-                # Create a buffer to hold compressed image
                 buffer = io.BytesIO()
-
-                # Save as JPEG with compression
                 img.save(buffer, format="JPEG", quality=50, optimize=True)
-
-                # Get the compressed data
                 compressed_data = buffer.getvalue()
                 screenshot_data = base64.b64encode(compressed_data).decode("utf-8")
 
             return [
                 types.ImageContent(
                     type="image",
-                    mimeType="image/jpeg",  # Changed to JPEG
+                    mimeType="image/jpeg",
                     data=screenshot_data,
                 )
             ]
@@ -140,7 +131,6 @@ async def handle_call_tool(
 
 
 async def main():
-    # Run the server using stdin/stdout streams
     async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,
