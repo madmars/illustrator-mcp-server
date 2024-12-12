@@ -42,90 +42,92 @@ async def handle_list_tools() -> list[types.Tool]:
     ]
 
 
-@server.call_tool()
-async def handle_call_tool(
-    name: str, arguments: dict | None
-) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-    if name == "capture-illustrator":
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-            screenshot_path = f.name
+def captureIllustrator() -> list[types.TextContent | types.ImageContent]:
+    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+        screenshot_path = f.name
 
-        try:
-            activate_script = """
-                tell application "Adobe Illustrator" to activate
-                delay 1
-                tell application "Claude" to activate
-            """
-            subprocess.run(["osascript", "-e", activate_script])
-
-            result = subprocess.run(
-                [
-                    "screencapture",
-                    "-R",
-                    "0,0,960,1080",  # Original capture area
-                    "-C",  # Capture in "compact" mode (lower quality)
-                    "-T",
-                    "2",  # Thumbnail mode with scale factor (smaller file size)
-                    "-x",  # No sound
-                    screenshot_path,
-                ]
-            )
-
-            if result.returncode != 0:
-                return [
-                    types.TextContent(type="text", text="Failed to capture screenshot")
-                ]
-
-            with Image.open(screenshot_path) as img:
-                if img.mode in ("RGBA", "LA"):
-                    img = img.convert("RGB")
-                buffer = io.BytesIO()
-                img.save(buffer, format="JPEG", quality=50, optimize=True)
-                compressed_data = buffer.getvalue()
-                screenshot_data = base64.b64encode(compressed_data).decode("utf-8")
-
-            return [
-                types.ImageContent(
-                    type="image",
-                    mimeType="image/jpeg",
-                    data=screenshot_data,
-                )
-            ]
-
-        finally:
-            if os.path.exists(screenshot_path):
-                os.unlink(screenshot_path)
-    elif name == "run-illustrator-script":
-        if not arguments or "code" not in arguments:
-            return [types.TextContent(type="text", text="No code provided")]
-
-        script = arguments["code"]
-        script = script.replace('"', '\\"').replace("\n", "\\n")
-
-        # Just run the script without focus changes
-        applescript = f"""
-            tell application "Adobe Illustrator"
-                do javascript "{script}"
-            end tell
+    try:
+        activate_script = """
+            tell application "Adobe Illustrator" to activate
+            delay 1
+            tell application "Claude" to activate
         """
+        subprocess.run(["osascript", "-e", activate_script])
 
         result = subprocess.run(
-            ["osascript", "-e", applescript], capture_output=True, text=True
+            [
+                "screencapture",
+                "-R",
+                "0,0,960,1080",
+                "-C",
+                "-T",
+                "2",
+                "-x",
+                screenshot_path,
+            ]
         )
 
         if result.returncode != 0:
-            return [
-                types.TextContent(
-                    type="text", text=f"Error executing script: {result.stderr}"
-                )
-            ]
+            return [types.TextContent(type="text", text="Failed to capture screenshot")]
 
-        success_message = "Script executed successfully"
-        if result.stdout:
-            success_message += f"\nOutput: {result.stdout}"
+        with Image.open(screenshot_path) as img:
+            if img.mode in ("RGBA", "LA"):
+                img = img.convert("RGB")
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=50, optimize=True)
+            compressed_data = buffer.getvalue()
+            screenshot_data = base64.b64encode(compressed_data).decode("utf-8")
 
-        return [types.TextContent(type="text", text=success_message)]
+        return [
+            types.ImageContent(
+                type="image",
+                mimeType="image/jpeg",
+                data=screenshot_data,
+            )
+        ]
 
+    finally:
+        if os.path.exists(screenshot_path):
+            os.unlink(screenshot_path)
+
+
+def runIllustratorScript(code: str) -> list[types.TextContent]:
+    script = code.replace('"', '\\"').replace("\n", "\\n")
+
+    applescript = f"""
+        tell application "Adobe Illustrator"
+            do javascript "{script}"
+        end tell
+    """
+
+    result = subprocess.run(
+        ["osascript", "-e", applescript], capture_output=True, text=True
+    )
+
+    if result.returncode != 0:
+        return [
+            types.TextContent(
+                type="text", text=f"Error executing script: {result.stderr}"
+            )
+        ]
+
+    success_message = "Script executed successfully"
+    if result.stdout:
+        success_message += f"\nOutput: {result.stdout}"
+
+    return [types.TextContent(type="text", text=success_message)]
+
+
+@server.call_tool()
+async def handleCallTool(
+    name: str, arguments: dict | None
+) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+    if name == "capture-illustrator":
+        return captureIllustrator()
+    elif name == "run-illustrator-script":
+        if not arguments or "code" not in arguments:
+            return [types.TextContent(type="text", text="No code provided")]
+        return runIllustratorScript(arguments["code"])
     else:
         raise ValueError(f"Unknown tool: {name}")
 
