@@ -10,7 +10,6 @@ import base64
 from PIL import Image
 import io
 
-
 server = Server("illustrator")
 
 
@@ -19,10 +18,15 @@ async def handle_list_tools() -> list[types.Tool]:
     return [
         types.Tool(
             name="view",
-            description="View a screenshot of the Adobe Ullustrator window",
+            description="View a screenshot of the Adobe Illustrator window",
             inputSchema={
                 "type": "object",
-                "properties": {},
+                "properties": {
+                    "return_to_app": {
+                        "type": "string",
+                        "description": "App name to return to after screenshot (e.g., Terminal, ChatGPT, Claude, etc.)",
+                    }
+                },
             },
         ),
         types.Tool(
@@ -33,7 +37,7 @@ async def handle_list_tools() -> list[types.Tool]:
                 "properties": {
                     "code": {
                         "type": "string",
-                        "description": "ExtendScript/JavaScript code to execute in Illustrator. It will run on the current document. you only need to make the document once",
+                        "description": "ExtendScript/JavaScript code to execute in Illustrator. It will run on the current document. You only need to make the document once.",
                     }
                 },
                 "required": ["code"],
@@ -42,7 +46,7 @@ async def handle_list_tools() -> list[types.Tool]:
     ]
 
 
-def captureIllustrator() -> list[types.TextContent | types.ImageContent]:
+def captureIllustrator(return_to_app: str | None = None) -> list[types.TextContent | types.ImageContent]:
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
         screenshot_path = f.name
 
@@ -50,8 +54,10 @@ def captureIllustrator() -> list[types.TextContent | types.ImageContent]:
         activate_script = """
             tell application "Adobe Illustrator" to activate
             delay 1
-            tell application "Claude" to activate
         """
+        if return_to_app:
+            activate_script += f'tell application "{return_to_app}" to activate\n'
+
         subprocess.run(["osascript", "-e", activate_script])
 
         result = subprocess.run(
@@ -123,7 +129,7 @@ async def handleCallTool(
     name: str, arguments: dict | None
 ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     if name == "view":
-        return captureIllustrator()
+        return captureIllustrator(arguments.get("return_to_app") if arguments else None)
     elif name == "run":
         if not arguments or "code" not in arguments:
             return [types.TextContent(type="text", text="No code provided")]
